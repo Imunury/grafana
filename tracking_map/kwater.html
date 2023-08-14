@@ -1,0 +1,122 @@
+<style>
+
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    #map {
+        width: 100%;
+        height: 100%;
+    }
+
+</style>
+<div id="map"></div>
+<div id="container_08">
+
+
+<script async
+	src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDalui8-5p2oAKYDGHW09Xf4n0WB7LSyVE&callback=initMap&v=weekly"></script>
+<script>
+	var map;
+	var rotate_driection = 0;
+	var markers = [];
+	var markerMode = false;
+
+async function initMap() {
+    // Fetch initial GPS data
+    const response = await fetch('http://125.136.64.124:5010/api/gps');
+    const data = await response.json();
+    const latestData = data[data.length - 1]; // Assuming the latest data is at the end of array
+    const initialLocation = { lat: latestData.lat, lng: latestData.lon };
+    
+    map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 15,
+        center: initialLocation,
+        disableDefaultUI: true,
+        mapTypeId: 'satellite'
+    });
+
+		// 클릭 이벤트 처리
+		google.maps.event.addListener(map, 'click', function (event) {
+			if (markerMode) {
+				placeMarker(event.latLng);
+			}
+		});
+	}
+
+    //...
+    // Place a marker at a certain location
+    function placeMarker(location) {
+    console.log("위도 : " + location.lat());
+    console.log("경도 : " + location.lng());
+    var marker = new google.maps.Marker({
+        position: location,
+        map: map,
+        icon: {
+        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+        scale: 1,
+        fillColor: 'red',
+        fillOpacity: 1,
+        strokeColor: 'red',
+        strokeWeight: 1,
+        rotation: rotate_driection // initial rotation angle set to 0
+        }
+    });
+
+
+    }
+
+
+    var counter = 0; // Add a counter to track number of updates
+    var maxMarkers = 10; // Maximum number of markers to display at once
+    setInterval(updateMarkers, 500);  // Update every 0.5 seconds
+
+    function updateMarkers() {
+        fetch('http://125.136.64.124:5010/api/gps')
+        .then(response => response.json())
+        .then(data => {
+            const latestData = data[data.length - 1]; // Assuming the latest data is at the end of array
+            const latestLocation = new google.maps.LatLng(latestData.lat, latestData.lon);
+            counter++;
+            if (counter % 10 == 0) {  // Only add marker if counter is a multiple of 10
+                // Create a new marker
+                placeMarker(latestLocation);
+
+                // If there are more than maxMarkers, remove the oldest one
+                if (markers.length > maxMarkers) {
+                    var removedMarker = markers.shift();
+                    removedMarker.setMap(null);
+                }
+            }
+
+            // Update map center
+            map.setCenter({ lat: latestData.lat, lng: latestData.lon });
+        })
+        .catch(error => console.error(error));
+    }
+
+	function removeMarker(marker) {
+		// 마커를 지도에서 제거
+		marker.setMap(null);
+
+		// 배열에서 마커 제거
+		var index = markers.indexOf(marker);
+		if (index !== -1) {
+			markers.splice(index, 1);
+		}
+	}
+    
+
+	function deleteAllMarkers() {
+		// 모든 마커 제거
+		for (var i = 0; i < markers.length; i++) {
+			markers[i].setMap(null);
+		}
+		markers = [];
+	}
+
+	
+	window.initMap = initMap;
+</script>
